@@ -1,3 +1,4 @@
+//firefly.h <r68karimi[at]gmail.com>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,29 +10,54 @@
 #include <sys/epoll.h>
 #include <errno.h>
 
-class Firefly {
+class firefly {
     private:
         int _running = 1;
         int _max_events = 64000;
         int _message_size = 1024;
-        struct _epoll_event event;
-        struct _epoll_event *events;
-        int port;
+        struct epoll_event _event;
+        struct epoll_event *_events;
+        char *_port;
 
     public:
-        int on_read();
-        int on_accept();
-        int on_connection_close();
+        firefly(char *, int);
+        ~firefly();
+        int on_read(char *);
+        int on_connection_accept(int, char *, char *);
+        int on_connection_close(int);
         int add_fd(int);
         int remove_fd(int);
         static int make_socket_non_blocking(int);
-        static int create_and_bind(char *port);
+        static int create_and_bind(char *);
         int shutdown();
         int fire_event_loop();
 };
 
+//---------------- constructor, destructor --------------------
+firefly::firefly(char *port, int message_size){
+    _port = port;
+    _message_size = message_size;
+}
+firefly::~firefly(){
+    
+}
+//--------------- on read || user has to implement -------------------------------------
+/*int firefly::on_read(char *buf){
+    printf("%s\n", buf);
+    return 1;
+}*/
+//--------------- on connection close -------------------------
+int firefly::on_connection_accept(int fd, char* host, char* port){
+    printf("Accepted connection on descriptor %d (host=%s, port=%s)\n", fd, host, port);
+    return 1;
+}
+//--------------- on connection accept ------------------------
+int firefly::on_connection_close(int fd){
+    printf("Connetion on descriptor %d is closed!\n", fd);
+    return 1;
+}
 //---------------- make socket non-blocking -------------------
-int Firefly::make_socket_non_blocking(int sfd) {
+int firefly::make_socket_non_blocking(int sfd) {
     int flags, s;
     flags = fcntl(sfd, F_GETFL, 0);
     if (flags == -1) {
@@ -47,7 +73,7 @@ int Firefly::make_socket_non_blocking(int sfd) {
     return 0;
 }
 //--------------- create and bind -----------------------------
-int Firefly::create_and_bind(char *port) {
+int firefly::create_and_bind(char *port) {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     int s, sfd;
@@ -78,14 +104,14 @@ int Firefly::create_and_bind(char *port) {
     return sfd;
 }
 //---------------- shutdown -----------------------------------
-int Firefly::shutdown(){
+int firefly::shutdown(){
     _running = 0;
     while(_running != -1) {} // just block until it's not -1
     return 0;
 }
 //---------------- fire event loop ----------------------------
-int Firefly::fire_event_loop() {
-    int sfd = create_and_bind(this._port);
+int firefly::fire_event_loop() {
+    int sfd = create_and_bind(_port);
     if (sfd == -1)
         abort();
     int s = make_socket_non_blocking(sfd);
@@ -149,10 +175,9 @@ int Firefly::fire_event_loop() {
                                     sbuf, sizeof sbuf,
                                     NI_NUMERICHOST | NI_NUMERICSERV);
                     if (s == 0) {
-                        printf("Accepted connection on descriptor %d "
-                                    "(host=%s, port=%s)\n", infd, hbuf, sbuf);
+                        
                         /*----------------------*/
-                        on_connection_accept();
+                        on_connection_accept(infd, hbuf, sbuf);
                         /*----------------------*/
                     }
                     /* Make the incoming socket non-blocking and add it to the
@@ -180,9 +205,9 @@ int Firefly::fire_event_loop() {
 
                 while (1) {
                     ssize_t count;
-                    char buf[MESSAGE_SIZE] = {'\0'};
+                    char buf[_message_size] = {'\0'};
 
-                    count = read(_events[i].data.fd, buf, MESSAGE_SIZE);
+                    count = read(_events[i].data.fd, buf, _message_size);
                     if (count == -1) {
                         /* If errno == EAGAIN, that means we have read all
                         data. So go back to the main loop. */
@@ -200,11 +225,11 @@ int Firefly::fire_event_loop() {
 
                     int tmp = count;
 
-                    if (count == MESSAGE_SIZE)
+                    if (count == _message_size)
                         tmp = -1;
 
-                    while (tmp != -1 && tmp < MESSAGE_SIZE) {
-                        count = read(_events[i].data.fd, buf, MESSAGE_SIZE - tmp);
+                    while (tmp != -1 && tmp < _message_size) {
+                        count = read(_events[i].data.fd, buf, _message_size - tmp);
                         if (count <= 0) {
                             continue;
                         }
@@ -212,23 +237,23 @@ int Firefly::fire_event_loop() {
                     }
 
                     /* ------------ */
-                    on_read();
+                    on_read(buf);
                     /* ------------ */
 
                 }
 
                 if (done) {
                     /* Closing the descriptor will make epoll remove it from the set of descriptors which are monitored. */
-                    close(events[i].data.fd);
+                    close(_events[i].data.fd);
                     /* ------------ */
-                    on_connection_close();
+                    on_connection_close(_events[i].data.fd);
                     /* ------------ */
                 }
             }
         }
     }
 
-    free(events);
+    free(_events);
     close(sfd);
     _running = -1; // it means that shutdown was successfull
     return 1;
