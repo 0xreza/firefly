@@ -9,10 +9,10 @@ Firefly is here to make the life easier.
 
 **Features:**
 
-*built on top of 'epoll', most efficient system call for async io.
-*extremely easy to use. make a firefly instance, define on_read function, firefly.loop(), and you're done!
-*it knows your message size, buffers messages on different file descriptors and calls on_read when it's ready.
-*on_accept, on_close functions can be defined.
+* built on top of 'epoll', most efficient system call for async io.
+* extremely easy to use. make a firefly instance, define on_read function, firefly.loop(), and you're done!
+* it knows your message size, buffers messages on different file descriptors and calls on_read when it's ready.
+* on_accept, on_close functions can be defined.
 
 
 **Coming features:**
