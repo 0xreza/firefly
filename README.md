@@ -7,7 +7,7 @@ Firefly is here to make the life easier.
 
 ![firefly-eventloop](https://sugoiinu.files.wordpress.com/2012/09/firefly-1.jpg?w=610&h=405 "firefly")
 
-**:sparkles: Features:**
+**Features:**
 
 - [x] built on top of 'epoll', most efficient system call for async io.
 - [x] extremely easy to use. make a firefly instance, define on_read function, firefly.loop(), and you're done!
@@ -18,7 +18,7 @@ Firefly is here to make the life easier.
 
  
  
-***:rocket: usage example:***
+***3-Step Usage:***
  
 ```c++
 // 1. include the library
@@ -46,8 +46,6 @@ event_loop.fire_event_loop();
 
 ```
 ---
-\* *Firefly* is a work under process, published under Gnu Public License v3.0. Please feel free to use, contribute or sending me your valuable feedbacks. r68karimi[at]gmail[dot]com
+\* *Firefly* is a work under process, published under Gnu Public License v3.0. Please feel free to use, contribute or sending me your valuable feedbacks. r68karimi [at] gmail [dot] com
 
-
-**Coming features:**
 
