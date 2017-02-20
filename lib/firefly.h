@@ -17,10 +17,11 @@ class firefly {
         int _message_size = 1024;
         struct epoll_event _event;
         struct epoll_event *_events;
-        char *_port;
+        int _port;
+        int _efd;
 
     public:
-        firefly(char *, int);
+        firefly(int, int);
         ~firefly();
         int on_read(char *);
         int on_connection_accept(int, char *, char *);
@@ -28,19 +29,36 @@ class firefly {
         int add_fd(int);
         int remove_fd(int);
         static int make_socket_non_blocking(int);
-        static int create_and_bind(char *);
+        static int create_and_bind(int);
         int shutdown();
         int fire_event_loop();
 };
 
 //---------------- constructor, destructor --------------------
-firefly::firefly(char *port, int message_size){
+firefly::firefly(int port, int message_size){
     _port = port;
     _message_size = message_size;
 }
 firefly::~firefly(){
     
 }
+
+
+int firefly::add_fd(int fd){
+    int s = make_socket_non_blocking(fd);
+    if (s == -1)
+        return -1;
+    _event.data.fd = fd;
+    _event.events = EPOLLIN | EPOLLET;
+    s = epoll_ctl(_efd, EPOLL_CTL_ADD, fd, &_event);
+    printf("fd added to event loop\n");
+    if (s == -1) {
+        perror("epoll_ctl");
+        return -1;
+    }
+    return 1;
+}
+
 //--------------- on read || user has to implement -------------------------------------
 /*int firefly::on_read(char *buf){
     printf("%s\n", buf);
@@ -73,7 +91,10 @@ int firefly::make_socket_non_blocking(int sfd) {
     return 0;
 }
 //--------------- create and bind -----------------------------
-int firefly::create_and_bind(char *port) {
+int firefly::create_and_bind(int port) {
+
+    char __port[4];
+    sprintf(__port,"%d",port);
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     int s, sfd;
@@ -81,7 +102,7 @@ int firefly::create_and_bind(char *port) {
     hints.ai_family = AF_UNSPEC;     /* Return IPv4 and IPv6 choices */
     hints.ai_socktype = SOCK_STREAM; /* We want a TCP socket */
     hints.ai_flags = AI_PASSIVE;     /* All interfaces */
-    s = getaddrinfo(NULL, port, &hints, &result);
+    s = getaddrinfo(NULL, __port, &hints, &result);
     if (s != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
         return -1;
@@ -122,14 +143,14 @@ int firefly::fire_event_loop() {
         perror("listen");
         abort();
     }
-    int efd = epoll_create1(0);
-    if (efd == -1) {
+    _efd = epoll_create1(0);
+    if (_efd == -1) {
         perror("epoll_create");
         abort();
     }
     _event.data.fd = sfd;
     _event.events = EPOLLIN | EPOLLET;
-    s = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &_event);
+    s = epoll_ctl(_efd, EPOLL_CTL_ADD, sfd, &_event);
     if (s == -1) {
         perror("epoll_ctl");
         abort();
@@ -138,7 +159,7 @@ int firefly::fire_event_loop() {
     _events = (epoll_event *) calloc(_max_events, sizeof _event);
     /* The event loop */
     while (_running) {
-        int n = epoll_wait(efd, _events, _max_events, -1);
+        int n = epoll_wait(_efd, _events, _max_events, -1);
         for (int i = 0; i < n; i++) {
             if ((_events[i].events & EPOLLERR) ||
                 (_events[i].events & EPOLLHUP) ||
@@ -188,7 +209,7 @@ int firefly::fire_event_loop() {
 
                     _event.data.fd = infd;
                     _event.events = EPOLLIN | EPOLLET;
-                    s = epoll_ctl(efd, EPOLL_CTL_ADD, infd, &_event);
+                    s = epoll_ctl(_efd, EPOLL_CTL_ADD, infd, &_event);
                     if (s == -1) {
                         perror("epoll_ctl");
                         abort();
@@ -258,6 +279,3 @@ int firefly::fire_event_loop() {
     _running = -1; // it means that shutdown was successfull
     return 1;
 }
-
-
-
