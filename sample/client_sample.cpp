@@ -13,6 +13,7 @@
 #include <netdb.h>
 
 #define MESSAGE_SIZE 1024
+#define NUMBER_OF_MESSAGES 10000000
 
 int main(int argc, char **argv) {
     
@@ -57,12 +58,11 @@ int main(int argc, char **argv) {
     printf("Connected to the server!\n");
 
     char buffer[MESSAGE_SIZE];
-    for(int i=0; i<1000000; i++){
+    for(int i=0; i<NUMBER_OF_MESSAGES; i++){
       sprintf(buffer, "%d", i);
-      printf("Sending message to the server! '%s'\n", buffer);
       send(fd, buffer, MESSAGE_SIZE, 0);
     }
-
+    printf("All %d messages are sent to the server! \n", NUMBER_OF_MESSAGES);
     close(fd);
     return 0;
 }

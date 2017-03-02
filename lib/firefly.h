@@ -19,7 +19,9 @@ class firefly {
         struct epoll_event *_events;
         int _port;
         int _efd;
-
+        int *_buffer_index;
+        char **_buffer;
+        
     public:
         firefly(int, int);
         ~firefly();
@@ -38,6 +40,12 @@ class firefly {
 firefly::firefly(int port, int message_size){
     _port = port;
     _message_size = message_size;
+    _buffer = (char **) malloc(_max_events * sizeof(char *));
+    _buffer_index = (int *) malloc(_max_events * sizeof(int)); 
+    for (int i=0; i<_max_events; i++){
+        _buffer[i] = (char *) malloc(_message_size * sizeof(char));
+        _buffer_index[i] = 0;
+    }
 }
 firefly::~firefly(){
     
@@ -70,10 +78,10 @@ int firefly::on_connection_accept(int fd, char* host, char* port){
     return 1;
 }
 //--------------- on connection accept ------------------------
-int firefly::on_connection_close(int fd){
-    printf("Connetion on descriptor %d is closed!\n", fd);
-    return 1;
-}
+// int firefly::on_connection_close(int fd){
+//     printf("Connetion on descriptor %d is closed!\n", fd);
+//     return 1;
+// }
 //---------------- make socket non-blocking -------------------
 int firefly::make_socket_non_blocking(int sfd) {
     int flags, s;
@@ -228,7 +236,7 @@ int firefly::fire_event_loop() {
                     ssize_t count;
                     char buf[_message_size] = {'\0'};
 
-                    count = read(_events[i].data.fd, buf, _message_size);
+                    count = read(_events[i].data.fd, buf, _message_size - _buffer_index[i]);
                     if (count == -1) {
                         /* If errno == EAGAIN, that means we have read all
                         data. So go back to the main loop. */
@@ -244,23 +252,17 @@ int firefly::fire_event_loop() {
                         break;
                     }
 
-                    int tmp = count;
-
-                    if (count == _message_size)
-                        tmp = -1;
-
-                    while (tmp != -1 && tmp < _message_size) {
-                        count = read(_events[i].data.fd, buf, _message_size - tmp);
-                        if (count <= 0) {
-                            continue;
-                        }
-                        tmp += count;
+                    memcpy(_buffer[i] +_buffer_index[i], buf, count);
+                    _buffer_index[i] += count;
+                    
+                    if (_buffer_index[i] < _message_size){
+                        // DO NOTHING
+                    } else {
+                        /* ------------ */
+                        on_read(_buffer[i]);
+                        _buffer_index[i] = 0;
+                        /* ------------ */
                     }
-
-                    /* ------------ */
-                    on_read(buf);
-                    /* ------------ */
-
                 }
 
                 if (done) {
@@ -273,7 +275,8 @@ int firefly::fire_event_loop() {
             }
         }
     }
-
+    free(_buffer);
+    free(_buffer_index);
     free(_events);
     close(sfd);
     _running = -1; // it means that shutdown was successfull
