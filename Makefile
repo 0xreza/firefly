@@ -4,7 +4,6 @@ LIB=lib/
 CFLAGS= -std=c++11 -Wall -O3 -I$(LIB)
 LDFLAGS= 
 SRCFOLDER=sample/
-
 PROGRAMS= server_sample client_sample
 
 all: $(PROGRAMS)

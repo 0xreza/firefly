@@ -1,0 +1,8 @@
+// Place your settings in this file to overwrite default and user settings.
+{
+    "clang-format.language.cpp.fallbackStyle": "Google",
+    "clang-format.language.c.fallbackStyle": "Google",
+    "clang-format.language.c.style": "Google",
+    "clang-format.language.cpp.style": "Google",
+    "clang-format.style": "{IndentWidth: 4}"
+}
