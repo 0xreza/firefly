@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <map>
-
+#include "buffer.h"
 using namespace std;
 
 class firefly {
