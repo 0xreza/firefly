@@ -4,5 +4,12 @@
     "clang-format.language.c.fallbackStyle": "Google",
     "clang-format.language.c.style": "Google",
     "clang-format.language.cpp.style": "Google",
-    "clang-format.style": "{IndentWidth: 4}"
+    "clang-format.style": "{IndentWidth: 4}",
+    "files.associations": {
+        "*.md": "cpp",
+        "fstream": "cpp",
+        "cerrno": "cpp",
+        "*.tcc": "cpp",
+        "chrono": "cpp"
+    }
 }

@@ -13,6 +13,8 @@
 #include "buffer.h"
 using namespace std;
 
+#define READ_BUFFER_SIZE 20 * 1024 * 1024
+
 class firefly {
  private:
   int _running = 1;
@@ -22,13 +24,13 @@ class firefly {
   struct epoll_event *_events;
   int _port;
   int _efd;
-  map<int, char *> _buffer;
-  map<int, int> _buffer_index;
+
+  map<int, Buffer *> _buffer_;
 
  public:
   firefly(int, int);
   ~firefly();
-  int on_read(char *);
+  int on_read(char *, int len);
   int on_connection_accept(int, char *, char *);
   int on_connection_close(int);
   int add_fd(int);
@@ -161,7 +163,10 @@ int firefly::fire_event_loop() {
   int curr_fd;
   /* The event loop */
   while (_running) {
-    int n = epoll_wait(_efd, _events, _max_events, -1);
+    int n = epoll_wait(_efd, _events, _max_events, 1000);
+    if (n == 0) {
+      usleep(100);
+    }
     for (int i = 0; i < n; i++) {
       if ((_events[i].events & EPOLLERR) || (_events[i].events & EPOLLHUP) ||
           (!(_events[i].events & EPOLLIN))) {
@@ -195,8 +200,8 @@ int firefly::fire_event_loop() {
                           sizeof sbuf, NI_NUMERICHOST | NI_NUMERICSERV);
           if (s == 0) {
             /*----------------------*/
-            _buffer[infd] = (char *)malloc(_message_size);
-            _buffer_index[infd] = 0;
+            _buffer_[infd] = (Buffer *)malloc(sizeof(Buffer));
+            _buffer_[infd]->init();
             printf("memory allocated!\n");
             on_connection_accept(infd, hbuf, sbuf);
             /*----------------------*/
@@ -225,10 +230,9 @@ int firefly::fire_event_loop() {
 
         while (1) {
           ssize_t count;
-          char buf[_message_size] = {'\0'};
+          char buf[READ_BUFFER_SIZE] = {'\0'};
           curr_fd = _events[i].data.fd;
-          count = read(_events[i].data.fd, buf,
-                       _message_size - _buffer_index[curr_fd]);
+          count = read(_events[i].data.fd, buf, READ_BUFFER_SIZE);
           if (count == -1) {
             /* If errno == EAGAIN, that means we have read all
             data. So go back to the main loop. */
@@ -243,32 +247,28 @@ int firefly::fire_event_loop() {
             done = 1;
             break;
           }
-          memcpy(_buffer[curr_fd] + _buffer_index[curr_fd], buf, count);
-          _buffer_index[curr_fd] += count;
+          _buffer_[curr_fd]->append(buf, count);
 
-          if (_buffer_index[curr_fd] < _message_size) {
+          if (_buffer_[curr_fd]->length() < _message_size) {
             // DO NOTHING
             break;
           } else {
             /* ------------ */
-            on_read(_buffer[curr_fd]);
-            _buffer_index[curr_fd] = 0;
+            int num_messages = _buffer_[curr_fd]->length() / _message_size;
+            on_read(_buffer_[curr_fd]->get_buf(), num_messages);
+            _buffer_[curr_fd]->consume(_message_size * num_messages);
             /* ------------ */
-            continue;
-            // break;
+            break;
           }
         }
 
         if (done) {
           /* Closing the descriptor will make epoll remove it from the set of
            * descriptors which are monitored. */
-          free(_buffer[_events[i].data.fd]);
-          _buffer.erase(_events[i].data.fd);
-          _buffer_index.erase(_events[i].data.fd);
+          free(_buffer_[_events[i].data.fd]);
+          _buffer_.erase(_events[i].data.fd);
           close(_events[i].data.fd);
-          /* ------------ */
           on_connection_close(_events[i].data.fd);
-          /* ------------ */
         }
       }
     }
