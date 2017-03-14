@@ -59,9 +59,13 @@ int main(int argc, char **argv) {
   char buffer[MESSAGE_SIZE];
   for (int i = 0; i < NUMBER_OF_MESSAGES; i++) {
     sprintf(buffer, "%d", i);
-    send(fd, buffer, MESSAGE_SIZE, 0);
+    int size = write(fd, buffer, MESSAGE_SIZE);
+    if (size != MESSAGE_SIZE) {
+      printf("\n%d != %d\n", size, MESSAGE_SIZE);
+    }
   }
   printf("All %d messages are sent to the server! \n", NUMBER_OF_MESSAGES);
   close(fd);
+
   return 0;
 }

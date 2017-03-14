@@ -7,11 +7,11 @@
 
 using namespace std;
 
-int count = 0;
+unsigned long count = 0;
 
 void task1() {
   while (1) {
-    printf("count: %-20d\n", count);
+    // printf("count: %-40ld\n", count);
     sleep(1);
   }
 }

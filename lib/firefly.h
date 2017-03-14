@@ -10,10 +10,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <map>
+#include <set>
 #include "buffer.h"
 using namespace std;
 
-#define READ_BUFFER_SIZE 20 * 1024 * 1024
+#define READ_BUFFER_SIZE 16 * 1024 * 1024
 
 class firefly {
  private:
@@ -24,6 +25,8 @@ class firefly {
   struct epoll_event *_events;
   int _port;
   int _efd;
+  set<int> _fds;
+  set<int> _to_erase;
 
   map<int, Buffer *> _buffer_;
 
@@ -164,9 +167,7 @@ int firefly::fire_event_loop() {
   /* The event loop */
   while (_running) {
     int n = epoll_wait(_efd, _events, _max_events, 1000);
-    if (n == 0) {
-      usleep(100);
-    }
+
     for (int i = 0; i < n; i++) {
       if ((_events[i].events & EPOLLERR) || (_events[i].events & EPOLLHUP) ||
           (!(_events[i].events & EPOLLIN))) {
@@ -221,57 +222,71 @@ int firefly::fire_event_loop() {
         }
         continue;
       } else {
-        /* We have data on the fd waiting to be read. Read and
+        _fds.insert(_events[i].data.fd);
+      }
+    }
+
+    for (set<int>::iterator it = _fds.begin(); it != _fds.end(); ++it) {
+      /* We have data on the fd waiting to be read. Read and
         display it. We must read whatever data is available
         completely, as we are running in edge-triggered mode
         and won't get a notification again for the same
         data. */
-        int done = 0;
 
-        while (1) {
-          ssize_t count;
-          char buf[READ_BUFFER_SIZE] = {'\0'};
-          curr_fd = _events[i].data.fd;
-          count = read(_events[i].data.fd, buf, READ_BUFFER_SIZE);
-          if (count == -1) {
-            /* If errno == EAGAIN, that means we have read all
-            data. So go back to the main loop. */
-            if (errno != EAGAIN) {
-              perror("read");
-              done = 1;
-            }
-            break;
-          } else if (count == 0) {
-            /* End of file. The remote has closed the
-            connection. */
+      int done = 0;
+      curr_fd = *it;
+
+      while (1) {
+        ssize_t count;
+        char buf[READ_BUFFER_SIZE] = {'\0'};
+
+        count = read(curr_fd, buf, READ_BUFFER_SIZE);
+
+        if (count == -1) {
+          /* If errno == EAGAIN, that means we have read all
+          data. So go back to the main loop. */
+          if (errno != EAGAIN) {
+            perror("read");
             done = 1;
-            break;
           }
-          _buffer_[curr_fd]->append(buf, count);
-
-          if (_buffer_[curr_fd]->length() < _message_size) {
-            // DO NOTHING
-            break;
-          } else {
-            /* ------------ */
-            int num_messages = _buffer_[curr_fd]->length() / _message_size;
-            on_read(_buffer_[curr_fd]->get_buf(), num_messages);
-            _buffer_[curr_fd]->consume(_message_size * num_messages);
-            /* ------------ */
-            break;
-          }
+          break;
+        } else if (count == 0) {
+          /* End of file. The remote has closed the
+          connection. */
+          done = 1;
+          break;
         }
+        _buffer_[curr_fd]->append(buf, count);
 
-        if (done) {
-          /* Closing the descriptor will make epoll remove it from the set of
-           * descriptors which are monitored. */
-          free(_buffer_[_events[i].data.fd]);
-          _buffer_.erase(_events[i].data.fd);
-          close(_events[i].data.fd);
-          on_connection_close(_events[i].data.fd);
+        if (_buffer_[curr_fd]->length() < _message_size) {
+          // DO NOTHING
+          break;
+        } else {
+          /* ------------ */
+          int num_messages = _buffer_[curr_fd]->length() / _message_size;
+          on_read(_buffer_[curr_fd]->get_buf(), num_messages);
+          _buffer_[curr_fd]->consume(_message_size * num_messages);
+          /* ------------ */
+          break;
         }
       }
+
+      if (done) {
+        /* Closing the descriptor will make epoll remove it from the set of
+         * descriptors which are monitored. */
+        free(_buffer_[curr_fd]);
+        _buffer_.erase(curr_fd);
+        close(curr_fd);
+        _to_erase.insert(curr_fd);
+        on_connection_close(curr_fd);
+      }
     }
+
+    for (set<int>::iterator it = _to_erase.begin(); it != _to_erase.end();
+         it++) {
+      _fds.erase(*it);
+    }
+    _to_erase.clear();
   }
 
   free(_events);

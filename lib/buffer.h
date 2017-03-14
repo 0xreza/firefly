@@ -10,7 +10,7 @@ class Buffer {
  public:
   Buffer(){};
   void init() {
-    alloc = 32768;
+    alloc = 8 * 1024 * 1024;
     buf = (char *)malloc(alloc);
     offset = 0;
     end = 0;
@@ -72,7 +72,7 @@ class Buffer {
         continue;
       }
       /* Increase the size of the buffer and retry. */
-      alloc += len + 32768;
+      alloc += len + 8 * 1024 * 1024;
       // printf("======== REALLOC %d =========\n", alloc);
       buf = (char *)realloc(buf, alloc);
     }

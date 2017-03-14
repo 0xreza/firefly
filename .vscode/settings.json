@@ -10,6 +10,8 @@
         "fstream": "cpp",
         "cerrno": "cpp",
         "*.tcc": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "array": "cpp",
+        "istream": "cpp"
     }
 }
