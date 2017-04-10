@@ -19,7 +19,7 @@ using namespace std;
 class firefly {
  private:
   int _running = 1;
-  int _max_events = 64000;
+  int _max_events = 6400;
   int _message_size = 1024;
   struct epoll_event _event;
   struct epoll_event *_events;
@@ -203,7 +203,6 @@ int firefly::fire_event_loop() {
             /*----------------------*/
             _buffer_[infd] = (Buffer *)malloc(sizeof(Buffer));
             _buffer_[infd]->init();
-            printf("memory allocated!\n");
             on_connection_accept(infd, hbuf, sbuf);
             /*----------------------*/
           }

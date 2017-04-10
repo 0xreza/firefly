@@ -11,6 +11,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <cstring>
+#include <ctime>
 
 #define MESSAGE_SIZE 1024
 #define NUMBER_OF_MESSAGES 10000000
@@ -56,9 +58,10 @@ int main(int argc, char **argv) {
 
   printf("Connected to the server!\n");
 
-  char buffer[MESSAGE_SIZE];
+  char buffer[MESSAGE_SIZE] = {'\0'};
   for (int i = 0; i < NUMBER_OF_MESSAGES; i++) {
-    sprintf(buffer, "%d", i);
+    time_t t = time(0);
+    memcpy(buffer, &t, sizeof(t));
     int size = write(fd, buffer, MESSAGE_SIZE);
     if (size != MESSAGE_SIZE) {
       printf("\n%d != %d\n", size, MESSAGE_SIZE);
