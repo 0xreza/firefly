@@ -12,9 +12,9 @@ Firefly is here to make the life easier.
 - [x] built on top of 'epoll', most efficient system call for async io.
 - [x] extremely easy to use. make a firefly instance, define on_read function, firefly.fire_event_loop(), and you're good to go!
 - [x] it knows your message size, buffers messages on different file descriptors and calls on_read when it's ready.
-- [x] on_connection_accept, on_connection_close methods are definable.
+- [x] on_connection_accept, on_connection_close methods are customizable.
 - [ ] supports threadpool and workerpool
-- [x] add any other file description to the event loop, firefly takes care of them not only connections
+- [x] add any other file descriptor to the event loop, firefly will take care of them.
 
  
  
@@ -46,6 +46,6 @@ event_loop.fire_event_loop();
 
 ```
 ---
-\* *Firefly* is a work under process, published under Gnu Public License v3.0. Please feel free to use, contribute or sending me your valuable feedbacks. r68karimi [at] gmail [dot] com
+\* *Firefly* is a work in progress, published under Gnu Public License v3.0. Please feel free to use, contribute or sending me your valuable feedbacks. r68karimi [at] gmail [dot] com
 
 
